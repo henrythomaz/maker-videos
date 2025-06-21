@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/orquestrador/index.js"
+    "start": "node --experimental-json-modules src/orquestrador/index.js"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
     "readline-sync": "^1.4.10"
   }
 }

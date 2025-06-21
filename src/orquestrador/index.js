@@ -1,8 +1,14 @@
 import readline from 'readline-sync';
 import { execSync } from 'child_process';
+import text from '../robots/text.js';
+import userInput from '../robots/user-input.js';
+
+const robots = {
+    text: text,
+    userInput: userInput
+};
 
 if (process.platform === 'win32') {
-
   const codePage = execSync('chcp').toString();
   if (!codePage.includes('65001')) {
     console.warn(
@@ -11,25 +17,32 @@ if (process.platform === 'win32') {
   }
 }
 
-function start() {
+async function start() {
   const content = {};
 
   content.searchTerm = askAndReturnSearchTerm();
   content.prefix = askAndReturnPrefix();
 
+  await robots.text(content);
+  robots.userInput(content);
+
   function askAndReturnSearchTerm() {
-    return readline.question('Digite um termo de pesquisa da Wikipedia:');
+    return readline.question('Digite um termo de pesquisa da Wikipedia: ');
   }
 
   function askAndReturnPrefix() {
     const prefixes = ['Quem é', 'O que é', 'A história de'];
     const selectedPrefixIndex = readline.keyInSelect(prefixes, 'Escolha uma opção:');
     const selectedPrefixText = prefixes[selectedPrefixIndex];
-
     return selectedPrefixText;
   }
 
-  console.log(content);
+  const orderedContent = {
+    sourceContentOriginal: content.sourceContentOriginal,
+    searchTerm: content.searchTerm,
+    prefix: content.prefix
+  };
+  console.log(orderedContent);
 }
 
 start();
