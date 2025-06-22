@@ -1,14 +1,16 @@
-
-
 import fetch from 'node-fetch';
+import sentenceBoundaryDetection from 'sbd';
 
 async function textRobot(content) {
   try {
     const wikipediaContent = await fetchContentFromWikipedia(content);
     const cleanedContent = cleanWikipediaText(wikipediaContent);
-    content.sourceContentOriginal = cleanedContent;
+    const sentences = breakContentIntoSentences(cleanedContent);
+
+    content.sourceContentOriginal = sentences;
 
     console.log('\n📝 Conteúdo extraído da Wikipedia (limpo):\n');
+    console.log(content.sourceContentOriginal);
   } catch (error) {
     console.error('❌ Erro ao buscar conteúdo da Wikipedia:', error.message);
   }
@@ -35,18 +37,20 @@ async function fetchContentFromWikipedia(content) {
 }
 
 function cleanWikipediaText(text) {
-  // Remove seções como "== Referências =="
   text = text.replace(/==+.*?==+/g, '');
-
-  // Remove quebras de linha múltiplas e linhas em branco
   text = text.replace(/\n+/g, ' ');
-
-  // Remove espaços duplicados
   text = text.replace(/\s{2,}/g, ' ').trim();
-
   text = text.replace(/\([^()]*\)/g, '');
-
   return text;
+}
+
+function breakContentIntoSentences(text) {
+  const sentences = sentenceBoundaryDetection.sentences(text);
+  return sentences.map(sentence => ({
+    text: sentence,
+    keywords: [],
+    images: []
+  }));
 }
 
 export default textRobot;
