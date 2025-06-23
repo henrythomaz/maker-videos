@@ -4,8 +4,8 @@
   "main": "src/orquestrador/index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --experimental-json-modules src/orquestrador/index.js"
+    "start": "node --experimental-json-modules src/orquestrador/index.js",
+    "debug": "node --experimental-json-modules --trace-warnings src/orquestrador/index.js"
   },
   "keywords": [],
   "author": "",

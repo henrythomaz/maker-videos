@@ -126,19 +126,21 @@ async function textRobot(content) {
         const limitedSentences = sentences.slice(0, content.maximumSentences);
 
         console.log('🔑 Extraindo keywords...');
-        content.sentences = limitedSentences.map(sentence => {
-            const keywords = extractRelevantKeywords(sentence, content.maxKeywordsPerSentence || 5);
-            return {
-                text: sentence,
-                keywords: keywords.length ? keywords : ['Sem keywords relevantes'],
-                images: []
-            };
-        });
+        const processedSentences = limitedSentences.map(sentence => ({
+            text: sentence,
+            keywords: extractRelevantKeywords(sentence, content.maxKeywordsPerSentence || 5),
+            images: []
+        }));
 
         content.sourceContentOriginal = cleanedContent;
         console.log('✅ Texto processado com sucesso!');
         
-        return content; // Retorna o conteúdo modificado
+        return {
+            ...content, // Mantém todas as propriedades existentes
+            sentences: processedSentences,
+            sourceContentOriginal: cleanedContent,
+            fetchedAt: new Date().toISOString() // Adiciona timestamp para debug
+        };
 
     } catch (err) {
         console.error('❌ Erro no textRobot:', err.message);
