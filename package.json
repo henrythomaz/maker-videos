@@ -1,23 +1,24 @@
 {
-    "name": "backend",
-    "version": "1.0.0",
-    "main": "src/orquestrador/index.js",
-    "type": "module",
-    "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1",
-      "start": "node --experimental-json-modules src/orquestrador/index.js"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "description": "",
-    "dependencies": {
-      "dotenv": "^16.5.0",
-      "express": "^5.1.0",
-      "keyword-extractor": "^0.0.28",
-      "node-fetch": "^3.3.2",
-      "readline-sync": "^1.4.10",
-      "sbd": "^1.0.19"
-    }
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/orquestrador/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --experimental-json-modules src/orquestrador/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "compromise": "^14.14.4",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "keyword-extractor": "^0.0.28",
+    "node-fetch": "^3.3.2",
+    "readline-sync": "^1.4.10",
+    "sbd": "^1.0.19",
+    "stopword": "^3.1.5"
   }
-  
+}

@@ -1,71 +1,130 @@
 import fetch from 'node-fetch';
 import sentenceBoundaryDetection from 'sbd';
-import keyword_extractor from 'keyword-extractor';
+import nlp from 'compromise';
+import stopword from 'stopword';
 
-async function textRobot(content) {
-  try {
-    const wikipediaContent = await fetchContentFromWikipedia(content.searchTerm);
-    const cleanedContent = cleanWikipediaText(wikipediaContent);
-    const sentences = breakContentIntoSentences(cleanedContent);
-    const limitedSentences = sentences.slice(0, content.maximumSentences);
+const ptStopwords = stopword['pt'] || [];
+const customStopwords = ['que', 'foi', 'um', 'uma', 'como', 'para', 'com', 'do', 'da', 'dos', 'das', 'no', 'na', 'nos', 'nas'];
 
-    content.sentences = await Promise.all(
-      limitedSentences.map(async (sentence) => {
-        const keywords = extractKeywords(sentence);
-        return {
-          text: sentence,
-          keywords: keywords,
-          images: [],
-        };
-      })
-    );
+function cleanText(text) {
+    return text
+        .replace(/[.,\/#!?$%\^&\*;:{}=\_`~()]/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
 
-    content.sourceContentOriginal = cleanedContent;
+function extractRelevantKeywords(sentence, maxKeywords = 5) {
+    // Limpeza inicial do texto
+    const cleanedSentence = cleanText(sentence);
+    const doc = nlp(cleanedSentence);
 
-  } catch (error) {
-    console.error('❌ Erro ao processar conteúdo:', error.message);
-  }
+    // 1. Extrair entidades nomeadas (prioridade máxima)
+    const people = doc.people().out('array');
+    const places = doc.places().out('array');
+    const orgs = doc.organizations().out('array');
+    const entities = [...people, ...places, ...orgs].map(cleanText);
+
+    // 2. Extrair substantivos e adjetivos importantes
+    const nouns = doc.nouns().out('array');
+    const adjectives = doc.adjectives().out('array');
+    const topics = [...nouns, ...adjectives].map(cleanText);
+
+    // 3. Combinar todos os candidatos
+    const allCandidates = [...entities, ...topics];
+
+    // 4. Processamento e filtragem
+    const processedKeywords = allCandidates
+        .filter(keyword => {
+            // Remover vazios e muito curtos
+            if (!keyword || keyword.length < 3) return false;
+            
+            // Verificar se contém stopwords
+            const words = keyword.toLowerCase().split(/\s+/);
+            const hasStopword = words.some(w => 
+                ptStopwords.includes(w) || 
+                customStopwords.includes(w)
+            );
+            
+            return !hasStopword;
+        });
+
+    // 5. Eliminar duplicatas (case insensitive)
+    const uniqueKeywords = [];
+    const seenKeywords = new Set();
+
+    for (const keyword of processedKeywords) {
+        const lowerKeyword = keyword.toLowerCase();
+        if (!seenKeywords.has(lowerKeyword)) {
+            seenKeywords.add(lowerKeyword);
+            uniqueKeywords.push(keyword);
+        }
+    }
+
+    // 6. Ordenar por importância (entidades primeiro, depois por comprimento)
+    uniqueKeywords.sort((a, b) => {
+        const isEntityA = entities.includes(a);
+        const isEntityB = entities.includes(b);
+        
+        if (isEntityA !== isEntityB) return isEntityB - isEntityA;
+        return b.split(' ').length - a.split(' ').length || b.length - a.length;
+    });
+
+    // 7. Retornar apenas o número solicitado de keywords
+    return uniqueKeywords.slice(0, maxKeywords);
 }
 
 async function fetchContentFromWikipedia(searchTerm) {
-  const endpoint = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&format=json&titles=${encodeURIComponent(searchTerm)}&origin=*`;
-  const response = await fetch(endpoint);
-  if (!response.ok) {
-    throw new Error(`Erro na resposta da Wikipedia: ${response.statusText}`);
-  }
-  const data = await response.json();
-  const pages = data.query.pages;
-  const pageId = Object.keys(pages)[0];
-  const page = pages[pageId];
-  if (page.extract) {
-    return page.extract;
-  } else {
-    throw new Error('Nenhum conteúdo encontrado para o termo pesquisado.');
-  }
+    const endpoint = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&format=json&titles=${encodeURIComponent(searchTerm)}&origin=*`;
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+        throw new Error(`Erro na resposta da Wikipedia: ${response.statusText}`);
+    }
+    const data = await response.json();
+    const pages = data.query.pages;
+    const pageId = Object.keys(pages)[0];
+    const page = pages[pageId];
+    if (page.extract) {
+        return page.extract;
+    } else {
+        throw new Error('Nenhum conteúdo encontrado para o termo pesquisado.');
+    }
 }
 
 function cleanWikipediaText(text) {
-  return text
-    .replace(/==+.*?==+/g, '')
-    .replace(/\n+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/\([^()]*\)/g, '')
-    .trim();
+    return text
+        .replace(/==+.*?==+/g, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/<[^>]+>/g, '')
+        .trim();
 }
 
 function breakContentIntoSentences(text) {
-  return sentenceBoundaryDetection.sentences(text);
+    return sentenceBoundaryDetection.sentences(text);
 }
 
-function extractKeywords(sentence) {
-  const keywords = keyword_extractor.extract(sentence, {
-    language: 'portuguese',
-    remove_digits: true,
-    return_changed_case: true,
-    remove_duplicates: true
-  });
+async function textRobot(content) {
+    try {
+        const wikipediaContent = await fetchContentFromWikipedia(content.searchTerm);
+        const cleanedContent = cleanWikipediaText(wikipediaContent);
+        const sentences = breakContentIntoSentences(cleanedContent);
+        const limitedSentences = sentences.slice(0, content.maximumSentences);
 
-  return keywords;
+        content.sentences = limitedSentences.map(sentence => {
+            const keywords = extractRelevantKeywords(sentence, content.maxKeywordsPerSentence || 5);
+            return {
+                text: sentence,
+                keywords,
+                images: []
+            };
+        });
+
+        content.sourceContentOriginal = cleanedContent;
+        console.log('\n📝 Sentenças com keywords:\n', content.sentences);
+
+    } catch (err) {
+        console.error('❌ Erro:', err.message);
+    }
 }
 
 export default textRobot;
