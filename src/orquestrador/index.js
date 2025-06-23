@@ -1,51 +1,44 @@
-import readline from 'readline-sync';
 import { execSync } from 'child_process';
-import text from '../robots/text.js';
-import userInput from '../robots/user-input.js';
+import userInput from './user-input.js';
+import textRobot from '../robots/text.js';
+import state from '../robots/state.js';
 
-const robots = {
-    text: text,
-    userInput: userInput
-};
-
+// Verificação de encoding (Windows)
 if (process.platform === 'win32') {
-  const codePage = execSync('chcp').toString();
-  if (!codePage.includes('65001')) {
-    console.warn(
-      '\n⚠️  Seu terminal não está usando UTF-8.\nExecute "chcp 65001" antes de rodar o programa para evitar problemas com acentuação.\n'
-    );
-  }
+    const codePage = execSync('chcp').toString();
+    if (!codePage.includes('65001')) {
+        console.warn('\n⚠️ Seu terminal não está usando UTF-8.\nExecute "chcp 65001" antes de rodar o programa.\n');
+    }
 }
 
 async function start() {
-  const content = {
-    maximumSentences: 7
-  };
+    try {
+        // Carrega estado existente ou cria novo
+        let content = state.load() || { maximumSentences: 7 };
+        
+        // Coleta inputs do usuário
+        content = await userInput(content);
+        
+        // Processa o texto
+        content = await textRobot(content);
+        
+        // Salva e exibe resultados
+        state.save(content);
+        showResults(content);
+        
+    } catch (error) {
+        console.error('❌ Erro no processo:', error);
+    }
+}
 
-  content.searchTerm = askAndReturnSearchTerm();
-  content.prefix = askAndReturnPrefix();
-
-  await robots.text(content);
-  robots.userInput(content);
-
-  function askAndReturnSearchTerm() {
-    return readline.question('Digite um termo de pesquisa da Wikipedia: ');
-  }
-
-  function askAndReturnPrefix() {
-    const prefixes = ['Quem é', 'O que é', 'A história de'];
-    const selectedPrefixIndex = readline.keyInSelect(prefixes, 'Escolha uma opção:');
-    const selectedPrefixText = prefixes[selectedPrefixIndex];
-    return selectedPrefixText;
-  }
-
-  const orderedContent = {
-    sourceContentOriginal: content.sourceContentOriginal,
-    sentences: content.sentences,
-    searchTerm: content.searchTerm,
-    prefix: content.prefix
-  };
-  console.log(JSON.stringify(orderedContent, null, 4));
+function showResults(content) {
+    console.log('\n✅ Processo concluído! Resultado final:');
+    console.dir(content, {depth: null});
+    // console.log(JSON.stringify({
+    //     searchTerm: content.searchTerm,
+    //     prefix: content.prefix,
+    //     sentences: content.sentences
+    // }, null, 2));
 }
 
 start();

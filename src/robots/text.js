@@ -103,27 +103,46 @@ function breakContentIntoSentences(text) {
     return sentenceBoundaryDetection.sentences(text);
 }
 
+
 async function textRobot(content) {
     try {
+        // Validação de entrada
+        if (!content.searchTerm) {
+            throw new Error('Termo de pesquisa não definido');
+        }
+        
+        if (!content.maximumSentences) {
+            content.maximumSentences = 7; // Valor padrão
+        }
+
+        console.log('🔍 Buscando conteúdo na Wikipedia...');
         const wikipediaContent = await fetchContentFromWikipedia(content.searchTerm);
+        
+        console.log('🧹 Limpando conteúdo...');
         const cleanedContent = cleanWikipediaText(wikipediaContent);
+        
+        console.log('✂️ Dividindo em sentenças...');
         const sentences = breakContentIntoSentences(cleanedContent);
         const limitedSentences = sentences.slice(0, content.maximumSentences);
 
+        console.log('🔑 Extraindo keywords...');
         content.sentences = limitedSentences.map(sentence => {
             const keywords = extractRelevantKeywords(sentence, content.maxKeywordsPerSentence || 5);
             return {
                 text: sentence,
-                keywords,
+                keywords: keywords.length ? keywords : ['Sem keywords relevantes'],
                 images: []
             };
         });
 
         content.sourceContentOriginal = cleanedContent;
-        console.log('\n📝 Sentenças com keywords:\n', content.sentences);
+        console.log('✅ Texto processado com sucesso!');
+        
+        return content; // Retorna o conteúdo modificado
 
     } catch (err) {
-        console.error('❌ Erro:', err.message);
+        console.error('❌ Erro no textRobot:', err.message);
+        throw err; // Propaga o erro para quem chamou
     }
 }
 
