@@ -1,34 +1,42 @@
 import fetch from 'node-fetch';
 import sentenceBoundaryDetection from 'sbd';
+import keyword_extractor from 'keyword-extractor';
 
 async function textRobot(content) {
   try {
-    const wikipediaContent = await fetchContentFromWikipedia(content);
+    const wikipediaContent = await fetchContentFromWikipedia(content.searchTerm);
     const cleanedContent = cleanWikipediaText(wikipediaContent);
     const sentences = breakContentIntoSentences(cleanedContent);
+    const limitedSentences = sentences.slice(0, content.maximumSentences);
 
-    content.sourceContentOriginal = sentences;
+    content.sentences = await Promise.all(
+      limitedSentences.map(async (sentence) => {
+        const keywords = extractKeywords(sentence);
+        return {
+          text: sentence,
+          keywords: keywords,
+          images: [],
+        };
+      })
+    );
 
-    console.log('\n📝 Conteúdo extraído da Wikipedia (limpo):\n');
-    console.log(content.sourceContentOriginal);
+    content.sourceContentOriginal = cleanedContent;
+
   } catch (error) {
-    console.error('❌ Erro ao buscar conteúdo da Wikipedia:', error.message);
+    console.error('❌ Erro ao processar conteúdo:', error.message);
   }
 }
 
-async function fetchContentFromWikipedia(content) {
-  const endpoint = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&format=json&titles=${encodeURIComponent(content.searchTerm)}&origin=*`;
-
+async function fetchContentFromWikipedia(searchTerm) {
+  const endpoint = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&format=json&titles=${encodeURIComponent(searchTerm)}&origin=*`;
   const response = await fetch(endpoint);
   if (!response.ok) {
     throw new Error(`Erro na resposta da Wikipedia: ${response.statusText}`);
   }
-
   const data = await response.json();
   const pages = data.query.pages;
   const pageId = Object.keys(pages)[0];
   const page = pages[pageId];
-
   if (page.extract) {
     return page.extract;
   } else {
@@ -37,20 +45,27 @@ async function fetchContentFromWikipedia(content) {
 }
 
 function cleanWikipediaText(text) {
-  text = text.replace(/==+.*?==+/g, '');
-  text = text.replace(/\n+/g, ' ');
-  text = text.replace(/\s{2,}/g, ' ').trim();
-  text = text.replace(/\([^()]*\)/g, '');
-  return text;
+  return text
+    .replace(/==+.*?==+/g, '')
+    .replace(/\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\([^()]*\)/g, '')
+    .trim();
 }
 
 function breakContentIntoSentences(text) {
-  const sentences = sentenceBoundaryDetection.sentences(text);
-  return sentences.map(sentence => ({
-    text: sentence,
-    keywords: [],
-    images: []
-  }));
+  return sentenceBoundaryDetection.sentences(text);
+}
+
+function extractKeywords(sentence) {
+  const keywords = keyword_extractor.extract(sentence, {
+    language: 'portuguese',
+    remove_digits: true,
+    return_changed_case: true,
+    remove_duplicates: true
+  });
+
+  return keywords;
 }
 
 export default textRobot;

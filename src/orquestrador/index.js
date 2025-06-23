@@ -18,7 +18,9 @@ if (process.platform === 'win32') {
 }
 
 async function start() {
-  const content = {};
+  const content = {
+    maximumSentences: 7
+  };
 
   content.searchTerm = askAndReturnSearchTerm();
   content.prefix = askAndReturnPrefix();
@@ -39,10 +41,11 @@ async function start() {
 
   const orderedContent = {
     sourceContentOriginal: content.sourceContentOriginal,
+    sentences: content.sentences,
     searchTerm: content.searchTerm,
     prefix: content.prefix
   };
-  console.log(orderedContent);
+  console.log(JSON.stringify(orderedContent, null, 4));
 }
 
 start();
