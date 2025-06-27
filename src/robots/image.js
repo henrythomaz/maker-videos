@@ -42,10 +42,18 @@ async function robot() {
       content.sentences.map(async (sentence) => {
         try {
           const query = `${content.searchTerm} ${sentence.keywords?.[0] || ''}`.trim();
+          console.log(`Query gerada: "${query}"`);
           
-          // Tenta primeiro a Wikimedia, depois fallback
-          const images = (await IMAGE_SOURCES.wikimedia(query)) || 
-                        (await IMAGE_SOURCES.placeholder(content.searchTerm));
+          // Tenta primeiro a Wikimedia
+          let images = await IMAGE_SOURCES.wikimedia(query);
+          console.log(`Resultados Wikimedia:`, images);
+          
+          // Fallback para placeholder se não encontrar imagens
+          if (!images || images.length === 0) {
+            console.log('Nenhuma imagem encontrada na Wikimedia, usando fallback');
+            images = await IMAGE_SOURCES.placeholder(query);
+            console.log(`Resultados Placeholder:`, images);
+          }
           
           return {
             ...sentence,
@@ -53,9 +61,10 @@ async function robot() {
           };
         } catch (error) {
           console.error(`Erro processando sentença: "${sentence.text?.substring(0, 20)}..."`, error);
+          const fallbackImages = await IMAGE_SOURCES.placeholder(content.searchTerm);
           return {
             ...sentence,
-            images: await IMAGE_SOURCES.placeholder(content.searchTerm)
+            images: fallbackImages
           };
         }
       })
